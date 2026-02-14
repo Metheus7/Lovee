@@ -60,6 +60,26 @@
             justify-content: center; height: 100vh; opacity: 0; transition: 1s;
         }
 
+        /* تصميم محلل الصوت في الزاوية */
+        #visualizer {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            align-items: flex-end;
+            gap: 3px;
+            height: 60px;
+            z-index: 1000;
+        }
+
+        .bar {
+            width: 5px;
+            background-color: var(--deep-red);
+            border-radius: 5px;
+            height: 5px;
+            transition: height 0.1s ease;
+        }
+
         .envelope {
             width: 300px; height: 200px; background: #f3d2c1;
             position: relative; border-radius: 0 0 10px 10px;
@@ -74,12 +94,12 @@
 
         .letter {
             position: absolute; bottom: 10px; left: 10px; right: 10px;
-            background: #fffdf5; padding: 20px; border-radius: 8px;
+            background: #fffdf5; padding: 25px; border-radius: 8px;
             height: 0; overflow: hidden; transition: 0.8s ease-in-out;
             z-index: 5; text-align: center;
         }
 
-        .letter.open { height: 350px; bottom: 80px; }
+        .letter.open { height: 380px; bottom: 80px; }
 
         .heart {
             position: absolute; color: rgba(230, 57, 70, 0.4);
@@ -96,6 +116,12 @@
 
     <div class="bg-gradient"></div>
     <div id="heartContainer"></div>
+
+    <div id="visualizer">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </div>
 
     <section id="page1">
         <h1 class="main-title">يا عيوني.. لسى زعلانة مني؟ 🥺</h1>
@@ -119,7 +145,7 @@
         </div>
         <p style="margin-top: 50px; color: var(--deep-red); font-weight: bold;" id="instruction">اضغطي على الورقة لتكتشفي مفاجأتي 💌</p>
         
-        <audio id="myAudio" loop>
+        <audio id="myAudio" loop crossorigin="anonymous">
             <source src="Love1.m4a" type="audio/mp4">
         </audio>
     </section>
@@ -127,6 +153,7 @@
     <script>
         const noBtn = document.getElementById('noBtn');
         const audio = document.getElementById('myAudio');
+        const bars = document.querySelectorAll('.bar');
 
         // حركة هروب الزر
         function moveButton() {
@@ -141,8 +168,8 @@
         noBtn.addEventListener('touchstart', (e) => { e.preventDefault(); moveButton(); });
 
         function startSurprise() {
-            // تشغيل ملف Love1.m4a فور الضغط على الزر
-            audio.play().catch(error => console.log("تحتاج للمس الشاشة لتشغيل الصوت"));
+            audio.play();
+            setupVisualizer(); // تفعيل حركة الأعمدة مع الصوت
             
             document.getElementById('page1').style.display = 'none';
             document.getElementById('page2').style.display = 'flex';
@@ -152,16 +179,35 @@
             }, 50);
         }
 
+        // دالة الـ Visualizer لربط الأعمدة بالصوت
+        function setupVisualizer() {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const src = context.createMediaElementSource(audio);
+            const analyser = context.createAnalyser();
+
+            src.connect(analyser);
+            analyser.connect(context.destination);
+            analyser.fftSize = 64;
+
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function updateVisualizer() {
+                analyser.getByteFrequencyData(dataArray);
+                bars.forEach((bar, index) => {
+                    // نأخذ قيم التردد ونطبقها على طول الأعمدة
+                    const val = dataArray[index] / 2; 
+                    bar.style.height = (val > 5 ? val : 5) + 'px';
+                });
+                requestAnimationFrame(updateVisualizer);
+            }
+            updateVisualizer();
+        }
+
         function openLetter() {
             document.getElementById('letter').classList.add('open');
             document.getElementById('instruction').style.visibility = 'hidden';
-            
-            confetti({
-                particleCount: 150,
-                spread: 70,
-                origin: { y: 0.6 },
-                colors: ['#ff0000', '#ffb6c1']
-            });
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#ff0000', '#ffb6c1'] });
         }
 
         function createHearts() {
